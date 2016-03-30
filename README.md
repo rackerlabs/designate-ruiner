@@ -17,10 +17,11 @@ Setup
 -----
 
 *For now, you will need to go to [designate-carina](https://github.com/rackerlabs/designate-carina)
-and `docker-compose up` your designate first*
+and `docker-compose up` your designate first. You don't actually need to use
+carina.*
 
-Provided your designate is running in docker via designate-carina, then you can
-just do:
+Provided your designate is running in docker via `designate-carina`, then you
+can just do:
 
     make all
 
