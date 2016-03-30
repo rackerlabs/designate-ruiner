@@ -1,0 +1,4 @@
+*.cache*
+designate-carina/
+*.pyc
+/.venv

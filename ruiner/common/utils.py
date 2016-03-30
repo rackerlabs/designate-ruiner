@@ -1,0 +1,103 @@
+import subprocess
+import random
+import string
+
+import dns
+import dns.exception
+import dns.message
+import dns.rdatatype
+import dns.query
+
+import logging
+import colorlog
+
+def create_logger(name):
+    stream = logging.StreamHandler()
+    stream.setFormatter(colorlog.ColoredFormatter(
+         '%(log_color)s%(asctime)s [%(levelname)s] %(message)s'
+    ))
+
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(stream)
+    return logger
+
+LOG = create_logger(__name__)
+
+def run_cmd(cmd, workdir=None):
+    """Run the command. Return (out, err, ret) which are the stdout, stderr,
+    and return code respectively.
+
+        >>> run_cmd("ls", "-la")
+        (u'.\n..\ndocker.py\ndocker.pyc\none.py\nutils.py\nutils.pyc\n.utils.py.swp\nwaiters.py\nwaiters.pyc\n', u'', 0)
+    """
+    p = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=workdir,
+    )
+    out, err = p.communicate()
+    LOG.debug("command exited %s: `%s`", p.returncode, " ".join(cmd))
+    return (out.decode('utf-8'), err.decode('utf-8'), p.returncode)
+
+def resp_to_string(resp):
+    """Convert a resp (from the requests lib) to a string."""
+    if resp is None:
+        return "<resp is None!>"
+    msg = "\n----------------- Request -----------------"
+    msg += "\n[{2}] {0} {1}".format(
+        resp.request.method, resp.request.url, resp.status_code,
+    )
+    for k, v in resp.request.headers.items():
+        msg += "\n{0}: {1}".format(k, v)
+    if resp.request.body:
+        msg += "\n{0}".format(resp.request.body)
+
+    msg += "\n----------------- Response -----------------"
+    msg += "\n{0} {1}".format(resp.status_code, resp.reason)
+    for k, v in resp.headers.items():
+        msg += "\n{0}: {1}".format(k, v)
+
+    if resp.text and len(resp.text) > 1000:
+        msg += "\n{0}... <truncated>".format(resp.text[:1000])
+    else:
+        msg += "\n{0}".format(resp.text)
+    return msg
+
+def dig(zone_name, nameserver, rdatatype):
+    """dig a nameserver for a record of the given type
+
+        >>> dig('poo.com.', '127.0.0.1:53', 'SOA')
+        <DNS message, ID 1044>
+        >>> dig('poo.com.', '127.0.0.1', dns.rdatatype.SOA)
+        <DNS message, ID 1044>
+    """
+    host = nameserver
+    port = 53
+
+    if ':' in nameserver:
+        host, port = nameserver.split(':')
+        port = int(port)
+
+    if isinstance(rdatatype, basestring):
+        rdatatype = dns.rdatatype.from_text(rdatatype)
+
+    query = prepare_query(zone_name, rdatatype)
+    resp = dns.query.udp(query, host, timeout=1, port=port)
+    LOG.debug("\n%s", resp)
+    return resp
+
+def prepare_query(zone_name, rdatatype):
+    dns_message = dns.message.make_query(zone_name, rdatatype)
+    dns_message.set_opcode(dns.opcode.QUERY)
+    return dns_message
+
+def random_zone(name='pooey', tld='com'):
+    """
+        >>> random_zone(name='pooey', tld='com')
+        'pooey-mjxWsMnz.com.'
+    """
+    chars = "".join([random.choice(string.letters) for _ in range(8)])
+    return '{0}-{1}.{2}.'.format(name, chars, tld)
+
+def require_success(result):
+    out, err, ret = result
+    assert ret == 0
