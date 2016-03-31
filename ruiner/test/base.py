@@ -2,10 +2,10 @@ import unittest
 
 import dns.exception
 
-import designate
-import docker
-import utils
-import waiters
+from ruiner.common import designate
+from ruiner.common import docker
+from ruiner.common import utils
+from ruiner.common import waiters
 
 LOG = utils.create_logger(__name__)
 
