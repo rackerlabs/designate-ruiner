@@ -2,3 +2,4 @@
 designate-carina/
 *.pyc
 /.venv
+/.tox

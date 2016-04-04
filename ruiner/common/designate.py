@@ -1,7 +1,6 @@
 import json
 import requests
 
-import docker
 import utils
 
 LOG = utils.create_logger(__name__)
@@ -31,9 +30,8 @@ class API(object):
         body = json.dumps(dict(
             name=utils.random_zone(), email="joe@poo.com",
         ))
-        return requests.post(
-            "%s/v2/zones" % self.endpoint, data=body, headers=self.JSON_HEADERS,
-        )
+        url = "%s/v2/zones" % self.endpoint
+        return requests.post(url, data=body, headers=self.JSON_HEADERS)
 
     def delete_zone(self, zid):
         return requests.delete(

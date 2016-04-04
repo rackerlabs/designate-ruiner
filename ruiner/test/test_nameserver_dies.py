@@ -1,7 +1,4 @@
-import unittest
-
 from ruiner.common import utils
-from ruiner.common import waiters
 from ruiner.test import base
 
 LOG = utils.create_logger(__name__)

@@ -1,5 +1,6 @@
 import time
 
+
 def wait_for_status(api_call, statuses, timeout):
     """Wait for the zone to show the status
 
@@ -18,6 +19,7 @@ def wait_for_status(api_call, statuses, timeout):
         time.sleep(1)
     return resp
 
+
 def wait_for_404(api_call, timeout):
     """Wait for a zone to return a 404"""
 
@@ -30,5 +32,3 @@ def wait_for_404(api_call, timeout):
             break
         time.sleep(1)
     return resp
-
-
