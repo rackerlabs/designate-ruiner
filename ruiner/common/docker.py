@@ -16,11 +16,14 @@ def discover_designate_carina_dir():
 
 class DockerComposer(object):
 
-    def __init__(self):
+    def __init__(self, project_name=None):
         self.dir = discover_designate_carina_dir()
+        self.project_name = project_name
 
     def _run_cmd(self, *cmd):
         cmd = map(str, cmd)
+        if self.project_name is not None:
+            cmd[1:1] = ["-p", self.project_name]
         return utils.run_cmd(cmd, workdir=self.dir)
 
     def pause(self, container):

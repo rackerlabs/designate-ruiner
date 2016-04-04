@@ -29,6 +29,13 @@ class BaseTest(unittest.TestCase):
         cls.bind2 = cls.docker_composer.get_host("bind-2", 53, "udp")
         LOG.info("bind-2: %s", cls.bind2)
 
+        LOG.info("updating the default pool")
+        resp = cls.api.update_pool()
+        LOG.debug(utils.resp_to_string(resp))
+        if not resp.ok:
+            msg = "failed to update pool (status=%s)" % resp.status_code
+            raise Exception(msg)
+
     @classmethod
     def prechecks(cls):
         """Do quick checks of the api + nameservers"""
