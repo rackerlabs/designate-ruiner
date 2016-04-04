@@ -16,7 +16,14 @@ class BaseTest(unittest.TestCase):
     def setUpClass(cls):
         LOG.info("======== base class setup ========")
         super(BaseTest, cls).setUpClass()
-        cls.docker_composer = docker.DockerComposer()
+        # these are specific to designate-carina
+        compose_files = [
+            "base.yml", "envs/slappy-bind/designate.yml",
+            "envs/slappy-bind/bind.yml",
+        ]
+        cls.docker_composer = docker.DockerComposer(
+            compose_files=compose_files,
+        )
 
         cls.api = designate.API(
             "http://%s" % cls.docker_composer.get_host("api", 9001)
@@ -28,6 +35,13 @@ class BaseTest(unittest.TestCase):
 
         cls.bind2 = cls.docker_composer.get_host("bind-2", 53, "udp")
         LOG.info("bind-2: %s", cls.bind2)
+
+        LOG.info("updating the default pool")
+        resp = cls.api.update_pool()
+        LOG.debug(utils.resp_to_string(resp))
+        if not resp.ok:
+            msg = "failed to update pool (status=%s)" % resp.status_code
+            raise Exception(msg)
 
     @classmethod
     def prechecks(cls):
@@ -53,8 +67,8 @@ class BaseTest(unittest.TestCase):
 
         LOG.debug("checking bind-2 is down")
         try:
-            resp = utils.dig("poo.com.", self.bind2, "ANY")
-        except dns.exception.Timeout as e:
+            utils.dig("poo.com.", self.bind2, "ANY")
+        except dns.exception.Timeout:
             LOG.debug("verified bind-2 is down (query timed out)")
         else:
             self.fail("failed to pause container bind-2")
@@ -68,7 +82,7 @@ class BaseTest(unittest.TestCase):
         resp = self.api.create_zone()
         LOG.debug(utils.resp_to_string(resp))
         if resp.status_code != 202:
-            self.fail("failed to create zone (got status %s)" % resp.status_code)
+            self.fail("failed to create zone (status=%s)" % resp.status_code)
         return resp.json()["name"], resp.json()["id"]
 
     def delete_zone(self, name, zid):

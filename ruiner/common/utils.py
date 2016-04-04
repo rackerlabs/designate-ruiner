@@ -11,6 +11,7 @@ import dns.query
 import logging
 import colorlog
 
+
 def create_logger(name):
     stream = logging.StreamHandler()
     stream.setFormatter(colorlog.ColoredFormatter(
@@ -24,19 +25,35 @@ def create_logger(name):
 
 LOG = create_logger(__name__)
 
+
 def run_cmd(cmd, workdir=None):
     """Run the command. Return (out, err, ret) which are the stdout, stderr,
     and return code respectively.
 
         >>> run_cmd("ls", "-la")
-        (u'.\n..\ndocker.py\ndocker.pyc\none.py\nutils.py\nutils.pyc\n.utils.py.swp\nwaiters.py\nwaiters.pyc\n', u'', 0)
+        (u'.\n..\ndocker.py\nutils.py\nwaiters.py\n', u'', 0)
     """
     p = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=workdir,
     )
     out, err = p.communicate()
-    LOG.debug("command exited %s: `%s`", p.returncode, " ".join(cmd))
+    _log_cmd(cmd, workdir, out, err, p.returncode)
     return (out.decode('utf-8'), err.decode('utf-8'), p.returncode)
+
+
+def _log_cmd(cmd, workdir, out, err, ret):
+    msg = "command exited %s: " % ret
+    if workdir is not None:
+        msg += " from dir %s, " % workdir
+    msg += " `%s`" % " ".join(cmd)
+
+    if ret == 0:
+        LOG.debug(msg)
+    else:
+        LOG.warning(msg)
+        LOG.warning("+-- stdout\n%s", out)
+        LOG.warning("+-- stderr\n%s", err)
+
 
 def resp_to_string(resp):
     """Convert a resp (from the requests lib) to a string."""
@@ -62,6 +79,7 @@ def resp_to_string(resp):
         msg += "\n{0}".format(resp.text)
     return msg
 
+
 def dig(zone_name, nameserver, rdatatype):
     """dig a nameserver for a record of the given type
 
@@ -85,10 +103,12 @@ def dig(zone_name, nameserver, rdatatype):
     LOG.debug("\n%s", resp)
     return resp
 
+
 def prepare_query(zone_name, rdatatype):
     dns_message = dns.message.make_query(zone_name, rdatatype)
     dns_message.set_opcode(dns.opcode.QUERY)
     return dns_message
+
 
 def random_zone(name='pooey', tld='com'):
     """
@@ -97,6 +117,7 @@ def random_zone(name='pooey', tld='com'):
     """
     chars = "".join([random.choice(string.letters) for _ in range(8)])
     return '{0}-{1}.{2}.'.format(name, chars, tld)
+
 
 def require_success(result):
     out, err, ret = result

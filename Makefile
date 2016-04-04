@@ -1,19 +1,16 @@
 SHELL := /bin/bash
 
-all: designate-carina deps ruin
+all: designate-carina ruin
 
 designate-carina:
 	git clone git@github.com:rackerlabs/designate-carina.git
-	cd designate-carina && git checkout 196b9b01d358bba089dda5bd1060953fde4b9411
+	cd designate-carina && git checkout d8f6fefa300a87d515bfa9313b8921b2555d3ca4
 
-.venv:
-	virtualenv .venv
+lint:
+	tox -e flake8
 
-deps: .venv
-	.venv/bin/pip install -r test-requirements.txt
-
-ruin:
-	. .venv/bin/activate && py.test -v ./ruiner/
+ruin: lint
+	tox -e py27
 
 clean:
 	rm -rf designate-carina/
