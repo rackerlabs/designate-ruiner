@@ -8,13 +8,11 @@ class TestNameserverDies(base.BaseTest):
 
     def setUp(self):
         super(TestNameserverDies, self).setUp()
-        self.docker_composer.unpause("bind-2")
-        self.prechecks()
         LOG.info("======== test start ========")
 
     def tearDown(self):
         self.docker_composer.unpause("bind-2")
-        super(TestNameserverDies, self).setUp()
+        super(TestNameserverDies, self).tearDown()
 
     def test_create_zone_while_nameserver_is_down(self):
         """Create a zone while a nameserver is down. Check the zone goes to

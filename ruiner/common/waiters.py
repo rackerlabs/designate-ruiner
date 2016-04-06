@@ -1,7 +1,7 @@
 import time
 
 
-def wait_for_status(api_call, statuses, timeout):
+def wait_for_status(api_call, statuses, interval, timeout):
     """Wait for the zone to show the status
 
     :param statuses: if the status is in this list, stop polling
@@ -16,11 +16,11 @@ def wait_for_status(api_call, statuses, timeout):
             break
         if resp.json()["status"] in statuses:
             break
-        time.sleep(1)
+        time.sleep(interval)
     return resp
 
 
-def wait_for_404(api_call, timeout):
+def wait_for_404(api_call, interval, timeout):
     """Wait for a zone to return a 404"""
 
     end = time.time() + timeout
@@ -30,5 +30,5 @@ def wait_for_404(api_call, timeout):
             break
         if end < time.time():
             break
-        time.sleep(1)
+        time.sleep(interval)
     return resp

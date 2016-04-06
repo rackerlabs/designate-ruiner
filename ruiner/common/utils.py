@@ -1,6 +1,8 @@
+import json
 import subprocess
 import random
 import string
+import os
 
 import dns
 import dns.exception
@@ -76,7 +78,11 @@ def resp_to_string(resp):
     if resp.text and len(resp.text) > 1000:
         msg += "\n{0}... <truncated>".format(resp.text[:1000])
     else:
-        msg += "\n{0}".format(resp.text)
+        try:
+            msg += "\n{0}".format(json.dumps(resp.text, indent=2))
+        except:
+            msg += "\n{0}".format(resp.text)
+
     return msg
 
 
@@ -115,10 +121,22 @@ def random_zone(name='pooey', tld='com'):
         >>> random_zone(name='pooey', tld='com')
         'pooey-mjxWsMnz.com.'
     """
-    chars = "".join([random.choice(string.letters) for _ in range(8)])
+    chars = "".join(random.choice(string.ascii_letters) for _ in range(8))
     return '{0}-{1}.{2}.'.format(name, chars, tld)
 
 
 def require_success(result):
     out, err, ret = result
     assert ret == 0
+
+
+def random_project_name():
+    chars = "".join(random.choice(string.ascii_letters) for _ in range(8))
+    return "ruin_designate_%s" % chars
+
+
+def cleanup_file(filename):
+    try:
+        os.remove(filename)
+    except OSError:
+        pass
