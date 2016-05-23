@@ -145,9 +145,9 @@ class BaseTest(unittest.TestCase):
         _, _, ret = self.docker_composer.up()
         self.assertEqual(ret, 0)
 
-        sleep_time = 15
+        sleep_time = cfg.CONF.ruiner.service_startup_wait_time
         LOG.info("waiting %s seconds for services to start up", sleep_time)
-        time.sleep(15)
+        time.sleep(sleep_time)
 
     def cleanup_environment(self):
         LOG.info("======== cleaning up env (%s) ========", self.project_name)
