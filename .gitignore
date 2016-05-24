@@ -3,3 +3,4 @@ designate-carina/
 *.pyc
 /.venv
 /.tox
+ruiner.conf

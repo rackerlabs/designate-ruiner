@@ -21,7 +21,7 @@ def discover_designate_carina_dir():
 class DockerComposer(object):
     """An interface for invoking docker-compose commands"""
 
-    def __init__(self, project_name=None, compose_files=None):
+    def __init__(self, project_name=None, compose_files=None, carina_dir=None):
         """
         :param project_name: the compose project name to use for all commands
             as in, `docker-compose -p <project_name>`. If None, don't use any
@@ -29,10 +29,12 @@ class DockerComposer(object):
         :param compose_files: a list of docker-compose yaml configs to use.
             as in, `docker-compose -f base.yml -f more.yml -f ... build`.
             If None, don't pass a file. docker-compose will use it's default.
+        :param carina_dir: the directory containing designate-carina source.
+            see discover_designate_carina_dir()
         """
-        self.dir = discover_designate_carina_dir()
         self.project_name = project_name
         self.compose_files = compose_files
+        self.dir = discover_designate_carina_dir()
 
     def _run_cmd(self, *cmd):
         cmd = map(str, cmd)
@@ -42,6 +44,20 @@ class DockerComposer(object):
         if self.project_name is not None:
             cmd[1:1] = ["-p", self.project_name]
         return utils.run_cmd(cmd, workdir=self.dir)
+
+    def build(self):
+        LOG.info("building images")
+        return self._run_cmd("docker-compose", "build")
+
+    def up(self, detached=True):
+        LOG.info("starting docker containers")
+        if not detached:
+            return self._run_cmd("docker-compose", "up")
+        return self._run_cmd("docker-compose", "up", "-d")
+
+    def down(self):
+        LOG.info("stopping docker containers")
+        return self._run_cmd("docker-compose", "down")
 
     def pause(self, container):
         LOG.info("pausing container %s", container)
