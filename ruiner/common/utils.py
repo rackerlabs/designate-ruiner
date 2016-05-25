@@ -1,4 +1,5 @@
 import json
+import logging
 import subprocess
 import random
 import string
@@ -10,14 +11,23 @@ import dns.message
 import dns.rdatatype
 import dns.query
 
-import logging
 import colorlog
+
+from ruiner.common.config import cfg
 
 
 def create_logger(name):
+    colors = cfg.CONF['ruiner:colorlog']
     stream = logging.StreamHandler()
     stream.setFormatter(colorlog.ColoredFormatter(
-         '%(log_color)s%(asctime)s [%(levelname)s] %(message)s'
+        '%(log_color)s%(asctime)s [%(levelname)s] %(message)s',
+        log_colors={
+            'DEBUG': colors.debug_color,
+            'INFO': colors.info_color,
+            'WARNING': colors.warning_color,
+            'ERROR': colors.error_color,
+            'CRITICAL': colors.critical_color,
+        }
     ))
 
     logger = logging.getLogger(name)
