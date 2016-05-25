@@ -13,45 +13,38 @@ you to easily write automated resilience tests for designate's nameserver sync
 process.
 
 
-Setup
------
+Quickstart
+----------
 
-*For now, you will need to go to [designate-carina](https://github.com/rackerlabs/designate-carina)
-and `docker-compose up` your designate first. You don't actually need to use
-carina.*
+### Install docker
 
-Provided your designate is running in docker via `designate-carina`, then you
-can just do:
+You will first need to [install `docker` and `docker-compose`](
+https://docs.docker.com/engine/installation/).
 
-    make all
+A config file location is specified by `$RUINER_CONF`. An example config is:
 
-This does all the parts below and only requires that `git` and `virtualenv` are
-installed.
+    $ cat $RUINER_CONF
+    [ruiner]
+    # build_timeout = 120
+    # build_interval = 3
+    # service_startup_wait_time = 15
 
-##### fetch designate-carina
+### Setup [designate-carina](https://github.com/rackerlabs/designate-carina)
 
-The tests leverage [designate-carina](https://github.com/rackerlabs/designate-carina)
-for the docker bits. To fetch this, simply run:
+To do this:
 
     make clean && make designate-carina
 
-The version of designate-carina to use is pinned in the makefile.
+The tests leverage designate-carina for the docker bits. For now, we need to
+clone the designate-carina repository to a local dir. The version of
+designate-carina to checkout is pinned in the makefile.
 
-##### Install python libs
+### Run the tests
 
-Create and activate a virtualenv.
+The easiest away is using `tox`,
 
-    virtualenv .venv
-    . .venv/bin/activate
+    ### consider creating a virtualenv first
+    $ pip install tox
+    $ tox
 
-Then install the `test-requirements.txt`
-
-    pip install -r test-requirements.txt
-
-
-Run
----
-
-`py.test` is installed as the test runner.
-
-    py.test -v ./ruiner/tests
+This will run the pep8 checks and the reliability tests for designate.
