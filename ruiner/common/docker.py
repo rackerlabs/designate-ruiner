@@ -1,4 +1,5 @@
 import os
+import urlparse
 
 import utils
 
@@ -34,7 +35,7 @@ class DockerComposer(object):
         """
         self.project_name = project_name
         self.compose_files = compose_files
-        self.dir = discover_designate_carina_dir()
+        self.dir = carina_dir
 
     def _run_cmd(self, *cmd):
         cmd = map(str, cmd)
@@ -79,9 +80,18 @@ class DockerComposer(object):
         return self._run_cmd(*cmd)
 
     def get_host(self, container, port, protocol=None):
+        """Return a usable `host:port` for the container.
+
+        The host in os.environ('DOCKER_HOST') will be used, if set.
+        Otherwise, it will assume we're running locally and force a host of
+        127.0.0.1 instead of 0.0.0.0 (because dnspython complains sending to
+        0.0.0.0 but receiving from 127.0.0.1).
+        """
         out, err, ret = self.port(container, port, protocol)
         assert ret == 0
 
-        # dnspython complains sending to 0.0.0.0 but receiving from 127.0.0.1
-        result = out.strip()
-        return result.replace('0.0.0.0', '127.0.0.1')
+        parts = urlparse.urlsplit("tcp://%s" % out.strip())
+        host = os.environ.get('DOCKER_HOST', 'tcp://127.0.0.1:80')
+        host_parts = urlparse.urlsplit(host)
+
+        return "%s:%s" % (host_parts.hostname, parts.port)
