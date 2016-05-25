@@ -10,6 +10,7 @@ def get_location(name='ruiner.conf'):
     return path
 
 cfg.CONF.register_group(cfg.OptGroup('ruiner'))
+cfg.CONF.register_group(cfg.OptGroup('ruiner:colorlog'))
 
 cfg.CONF.register_opts([
     cfg.IntOpt("interval", default=3),
@@ -18,5 +19,14 @@ cfg.CONF.register_opts([
                help="How to wait after `docker-compose up` for services to "
                     "be ready."),
 ], group='ruiner')
+
+cfg.CONF.register_opts([
+    cfg.StrOpt('debug_color', default='white'),
+    cfg.StrOpt('info_color', default='green'),
+    cfg.StrOpt('warning_color', default='yellow'),
+    cfg.StrOpt('error_color', default='red'),
+    cfg.StrOpt('critical_color', default='red'),
+], group='ruiner:colorlog')
+
 
 cfg.CONF(args=[], default_config_files=[get_location()])
