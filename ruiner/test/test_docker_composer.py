@@ -43,7 +43,6 @@ class TestDockerComposer(unittest.TestCase):
                          '127.0.0.1:5555')
         self.dc.port.assert_called_with('central', 1122, 'udp')
 
-
     @mock.patch.dict(os.environ, {'DOCKER_HOST': 'tcp://1.2.3.4:2379'})
     def test_get_host_respects_docker_host(self):
         self.dc.port = mock.Mock(return_value=('0.0.0.0:5678', '', 0))
