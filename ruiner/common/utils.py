@@ -142,7 +142,7 @@ def require_success(result):
 
 def random_project_name():
     chars = "".join(random.choice(string.ascii_letters) for _ in range(8))
-    return "ruin_designate_%s" % chars
+    return ("ruin_designate_%s" % chars).lower()
 
 
 def cleanup_file(filename):

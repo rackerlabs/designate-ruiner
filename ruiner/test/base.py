@@ -5,6 +5,7 @@ import os
 import shutil
 
 import dns.exception
+import jinja2
 
 from ruiner.common import designate
 from ruiner.common import docker
@@ -104,20 +105,18 @@ class BaseTest(unittest.TestCase):
         self.designate_yaml = self.new_temp_file("designate", ".yml")
         LOG.debug("using designate.yml generated at %s", self.designate_yaml)
 
-        # initialize the designate.yml, pointing to the right designate.conf
-        src_path = os.path.join(
-            self.carina_dir, "envs/slappy-bind/designate.yml",
+        # generate the designate.yml contents from a template
+        content = jinja2.Template(
+            open('./ruiner/templates/designate.yml.jinja2').read()
+        ).render(
+            DESIGNATE_CONF=os.path.relpath(self.designate_conf,
+                                           self.carina_dir),
+            POOLS_YAML='envs/slappy-bind/pools.yml',
+            RUINER_PROJECT=self.project_name,
         )
-        content = open(src_path, 'r').read()
-
-        # this is a hack, relying on exact string matching
-        content = content.replace(
-            "envs/slappy-bind/designate.conf",
-            '"%s"' % os.path.relpath(self.designate_conf, self.carina_dir)
-        )
-        LOG.debug("%s has content:\n%s", self.designate_conf, content)
-
         open(self.designate_yaml, 'w').write(content)
+
+        LOG.debug("%s has content:\n%s", self.designate_yaml, content)
 
     def tearDown(self):
         LOG.info("======== base class teardown ========")
@@ -139,10 +138,12 @@ class BaseTest(unittest.TestCase):
 
     def deploy_environment(self):
         LOG.info("======== deploying env (%s) ========", self.project_name)
-        _, _, ret = self.docker_composer.build()
+        out, _, ret = self.docker_composer.build()
+        LOG.debug("stdout:\n%s", out)
         self.assertEqual(ret, 0)
 
-        _, _, ret = self.docker_composer.up()
+        out, _, ret = self.docker_composer.up()
+        LOG.debug("stdout:\n%s", out)
         self.assertEqual(ret, 0)
 
         sleep_time = cfg.CONF.ruiner.service_startup_wait_time

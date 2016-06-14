@@ -4,7 +4,7 @@ all: designate-carina ruin
 
 designate-carina:
 	git clone git@github.com:rackerlabs/designate-carina.git
-	cd designate-carina && git checkout 538b0bf5f70d0279401be6a2072a32b8f2f2fba9
+	cd designate-carina && git checkout 4da2d7d137c41e61fb801e39fa2fc8ccc1e98392
 
 lint:
 	tox -e flake8

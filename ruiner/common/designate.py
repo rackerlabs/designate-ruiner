@@ -6,45 +6,68 @@ import utils
 LOG = utils.create_logger(__name__)
 
 
-class API(object):
+class Client(object):
+
+    def __init__(self, endpoint, headers=None, timeout=60):
+        self.endpoint = endpoint
+        self.timeout = timeout
+        self.headers = headers or {}
+
+    def _inject_default_request_args(self, *args, **kwargs):
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = self.timeout
+        headers = dict(self.headers)
+        headers.update(kwargs.get('headers', {}))
+        kwargs['headers'] = headers
+        return args, kwargs
+
+    def get(self, *args, **kwargs):
+        args, kwargs = self._inject_default_request_args(*args, **kwargs)
+        return requests.get(*args, **kwargs)
+
+    def post(self, *args, **kwargs):
+        args, kwargs = self._inject_default_request_args(*args, **kwargs)
+        return requests.post(*args, **kwargs)
+
+    def put(self, *args, **kwargs):
+        args, kwargs = self._inject_default_request_args(*args, **kwargs)
+        return requests.put(*args, **kwargs)
+
+    def patch(self, *args, **kwargs):
+        args, kwargs = self._inject_default_request_args(*args, **kwargs)
+        return requests.patch(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        args, kwargs = self._inject_default_request_args(*args, **kwargs)
+        return requests.delete(*args, **kwargs)
+
+
+class API(Client):
 
     JSON_HEADERS = {
         "Content-type": "application/json",
         "Accept": "application/json",
     }
 
-    def __init__(self, endpoint):
-        self.endpoint = endpoint
+    def __init__(self, endpoint, timeout=60):
+        super(API, self).__init__(
+            endpoint=endpoint,
+            timeout=timeout,
+            headers=self.JSON_HEADERS,
+        )
 
     def list_zones(self):
-        return requests.get(
-            "%s/v2/zones" % self.endpoint, headers=self.JSON_HEADERS,
-        )
+        return self.get(url="%s/v2/zones" % self.endpoint)
 
     def get_zone(self, zid):
-        return requests.get(
-            "%s/v2/zones/%s" % (self.endpoint, zid), headers=self.JSON_HEADERS,
-        )
+        return self.get(url="%s/v2/zones/%s" % (self.endpoint, zid))
 
     def create_zone(self):
-        body = json.dumps(dict(
-            name=utils.random_zone(), email="joe@poo.com",
-        ))
-        url = "%s/v2/zones" % self.endpoint
-        return requests.post(url, data=body, headers=self.JSON_HEADERS)
+        body = json.dumps({
+            'name': utils.random_zone(),
+            'email': 'joe@poo.com',
+        })
+        return self.post(url="%s/v2/zones" % self.endpoint, data=body)
 
     def delete_zone(self, zid):
-        return requests.delete(
-            "%s/v2/zones/%s" % (self.endpoint, zid), headers=self.JSON_HEADERS,
-        )
-
-    def update_pool(self, hostname="ns1.example.com.",
-                    pool_id='794ccc2c-d751-44fe-b57f-8894c9f5c842'):
-        body = json.dumps({
-            "ns_records": [{
-                "hostname": hostname,
-                "priority": 1,
-            }]
-        })
-        url = "%s/v2/pools/%s" % (self.endpoint, pool_id)
-        return requests.patch(url, data=body, headers=self.JSON_HEADERS)
+        return self.delete(url="%s/v2/zones/%s" % (self.endpoint, zid))
