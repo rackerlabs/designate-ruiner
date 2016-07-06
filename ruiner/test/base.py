@@ -12,8 +12,25 @@ from ruiner.common import docker
 from ruiner.common import utils
 from ruiner.common import waiters
 from ruiner.common.config import cfg
+from ruiner.common.ini import IniFile
 
 LOG = utils.create_logger(__name__)
+
+
+class DockerComposeYamlTemplate(object):
+    """A tool to generate a designate.yml for docker-compose"""
+
+    def __init__(self):
+        self.source_template = './ruiner/templates/designate.yml.jinja2'
+        self.output_file = utils.new_temp_file("designate", ".yml")
+        LOG.debug("using designate.yml generated at %s", self.output_file)
+
+    def render(self, **kwargs):
+        templ = jinja2.Template(open(self.source_template).read())
+        content = templ.render(**kwargs)
+        with open(self.output_file, 'w') as f:
+            f.write(content)
+        LOG.debug("%s has content:\n%s", self.output_file, content)
 
 
 class BaseTest(unittest.TestCase):
@@ -51,12 +68,23 @@ class BaseTest(unittest.TestCase):
         self.discover_services()
         self.prechecks()
 
+    def tearDown(self):
+        LOG.info("======== base class teardown ========")
+        self.show_docker_logs()
+        self.cleanup_environment()
+        super(BaseTest, self).tearDown()
+
     def configure_designate_conf(self):
         """This method may be overridden by subclasses. You MUST do all
         customization of self.designate_conf in this method, so that the file
         is prepared before the images are built.
         """
         LOG.info("======== configuring designate.conf ========")
+        conf = IniFile(self.designate_conf)
+        conf.set("service:worker", "poll_timeout", 2)
+        conf.set("service:worker", "poll_retry_interval", 2)
+        conf.set("service:worker", "poll_max_retries", 2)
+        conf.set("service:worker", "poll_delay", 2)
 
     def init_tmp_dir(self):
         """There are some docker env config files we'll create dynamically.
@@ -71,21 +99,12 @@ class BaseTest(unittest.TestCase):
             pass
         self.tempdir = tempfile.tempdir
 
-    def new_temp_file(self, prefix, suffix):
-        """Return the name of a new (closed) temp file, in tempfile.tempdir.
-        This ensures the file will be cleaned up after the test runs."""
-        f = tempfile.NamedTemporaryFile(
-            prefix=prefix, suffix=suffix, delete=False
-        )
-        f.close()
-        self.addCleanup(utils.cleanup_file, f.name)
-        return f.name
-
     def init_designate_conf(self):
         """Create a designate.conf for use by the current test. This will be a
         randomized filename stored at self.designate_conf.
         """
-        self.designate_conf = self.new_temp_file("designate", ".conf")
+        self.designate_conf = utils.new_temp_file("designate", ".conf")
+        self.addCleanup(utils.cleanup_file, self.designate_conf)
         LOG.debug("using designate.conf generated at %s", self.designate_conf)
 
         # initialize designate.conf to some defaults
@@ -99,29 +118,19 @@ class BaseTest(unittest.TestCase):
                   open(self.designate_conf, 'r').read())
 
     def init_docker_compose_yaml(self):
-        """Create a designate.yml for use with docker-compose. This will be
-        a randomized filename stored a self.designate_yaml.
-        """
-        self.designate_yaml = self.new_temp_file("designate", ".yml")
-        LOG.debug("using designate.yml generated at %s", self.designate_yaml)
+        # the docker compose yaml does not work with absolute paths
+        designate_conf = os.path.relpath(self.designate_conf, self.carina_dir)
 
-        # generate the designate.yml contents from a template
-        content = jinja2.Template(
-            open('./ruiner/templates/designate.yml.jinja2').read()
-        ).render(
-            DESIGNATE_CONF=os.path.relpath(self.designate_conf,
-                                           self.carina_dir),
+        templ = DockerComposeYamlTemplate()
+        templ.render(
+            DESIGNATE_GIT_URL=cfg.CONF.ruiner.designate_git_url,
+            DESIGNATE_VERSION=cfg.CONF.ruiner.designate_version,
+            DESIGNATE_CONF=designate_conf,
             POOLS_YAML='envs/slappy-bind/pools.yml',
             RUINER_PROJECT=self.project_name,
         )
-        open(self.designate_yaml, 'w').write(content)
-
-        LOG.debug("%s has content:\n%s", self.designate_yaml, content)
-
-    def tearDown(self):
-        LOG.info("======== base class teardown ========")
-        self.cleanup_environment()
-        super(BaseTest, self).tearDown()
+        self.designate_yaml = templ.output_file
+        self.addCleanup(utils.cleanup_file, self.designate_yaml)
 
     def discover_services(self):
         LOG.info("======== discover service locations ========")
@@ -191,6 +200,13 @@ class BaseTest(unittest.TestCase):
 
     def restart_nameserver(self):
         utils.require_success(self.docker_composer.unpause("bind-2"))
+
+    def show_docker_logs(self):
+        out, err, ret = self.docker_composer.logs()
+        if ret != 0:
+            LOG.error("failed to get docker logs!")
+        LOG.debug("stdout:\n%s", out)
+        LOG.debug("stderr:\n%s", err)
 
     def create_zone(self):
         """Create a zone. Return (name, zone_id) on success, or self.fail()"""

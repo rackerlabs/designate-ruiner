@@ -4,6 +4,7 @@ import subprocess
 import random
 import string
 import os
+import tempfile
 
 import dns
 import dns.exception
@@ -150,3 +151,11 @@ def cleanup_file(filename):
         os.remove(filename)
     except OSError:
         pass
+
+
+def new_temp_file(prefix, suffix):
+    """Return the name of a new (closed) temp file, in tempfile.tempdir.
+    This ensures the file will be cleaned up after the test runs."""
+    f = tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, delete=False)
+    f.close()
+    return f.name

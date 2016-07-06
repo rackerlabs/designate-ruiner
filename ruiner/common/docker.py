@@ -79,6 +79,11 @@ class DockerComposer(object):
             cmd[2:2] = ["--protocol", protocol]
         return self._run_cmd(*cmd)
 
+    def logs(self):
+        LOG.info("getting docker logs")
+        cmd = ["docker-compose", "logs"]
+        return self._run_cmd(*cmd)
+
     def get_host(self, container, port, protocol=None):
         """Return a usable `host:port` for the container.
 
