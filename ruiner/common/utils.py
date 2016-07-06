@@ -141,9 +141,14 @@ def require_success(result):
     assert ret == 0
 
 
-def random_project_name():
-    chars = "".join(random.choice(string.ascii_letters) for _ in range(8))
-    return ("ruin_designate_%s" % chars).lower()
+def random_tag(n=8):
+    result = "".join(random.choice(string.ascii_letters) for _ in range(n))
+    return result.lower()
+
+
+def random_project_name(name="ruin_designate", tag=None):
+    tag = tag or random_tag()
+    return "{}_{}".format(name, tag).lower()
 
 
 def cleanup_file(filename):

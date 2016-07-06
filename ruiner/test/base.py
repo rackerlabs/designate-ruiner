@@ -20,9 +20,9 @@ LOG = utils.create_logger(__name__)
 class DockerComposeYamlTemplate(object):
     """A tool to generate a designate.yml for docker-compose"""
 
-    def __init__(self):
+    def __init__(self, tag=None):
         self.source_template = './ruiner/templates/designate.yml.jinja2'
-        self.output_file = utils.new_temp_file("designate", ".yml")
+        self.output_file = utils.new_temp_file(self._filetag(tag), ".yml")
         LOG.debug("using designate.yml generated at %s", self.output_file)
 
     def render(self, **kwargs):
@@ -31,6 +31,11 @@ class DockerComposeYamlTemplate(object):
         with open(self.output_file, 'w') as f:
             f.write(content)
         LOG.debug("%s has content:\n%s", self.output_file, content)
+
+    def _filetag(self, tag):
+        if tag:
+            return "designate-%s-" % tag
+        return "designate-"
 
 
 class BaseTest(unittest.TestCase):
@@ -45,8 +50,10 @@ class BaseTest(unittest.TestCase):
         LOG.info("======== base class setup ========")
         super(BaseTest, self).setUp()
 
+        self.random_tag = utils.random_tag()
+
         self.carina_dir = docker.discover_designate_carina_dir()
-        self.project_name = utils.random_project_name()
+        self.project_name = utils.random_project_name(tag=self.random_tag)
 
         self.init_tmp_dir()
         self.init_designate_conf()
@@ -103,7 +110,8 @@ class BaseTest(unittest.TestCase):
         """Create a designate.conf for use by the current test. This will be a
         randomized filename stored at self.designate_conf.
         """
-        self.designate_conf = utils.new_temp_file("designate", ".conf")
+        filetag = "designate-%s-" % self.random_tag
+        self.designate_conf = utils.new_temp_file(filetag, ".conf")
         self.addCleanup(utils.cleanup_file, self.designate_conf)
         LOG.debug("using designate.conf generated at %s", self.designate_conf)
 
@@ -121,7 +129,7 @@ class BaseTest(unittest.TestCase):
         # the docker compose yaml does not work with absolute paths
         designate_conf = os.path.relpath(self.designate_conf, self.carina_dir)
 
-        templ = DockerComposeYamlTemplate()
+        templ = DockerComposeYamlTemplate(tag=self.random_tag)
         templ.render(
             DESIGNATE_GIT_URL=cfg.CONF.ruiner.designate_git_url,
             DESIGNATE_VERSION=cfg.CONF.ruiner.designate_version,
