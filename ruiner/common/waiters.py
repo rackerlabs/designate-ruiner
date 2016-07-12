@@ -10,8 +10,9 @@ def wait_for_status(api_call, statuses, interval, timeout):
     end = time.time() + timeout
     while True:
         resp = api_call()
-        assert resp.ok
 
+        if not resp.ok:
+            break
         if end < time.time():
             break
         if resp.json()["status"] in statuses:

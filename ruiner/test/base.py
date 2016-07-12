@@ -291,7 +291,7 @@ class BaseTest(unittest.TestCase):
 
         LOG.debug(utils.resp_to_string(resp))
         self.assertEqual(
-            resp.json()["status"], "ERROR",
+            resp.json().get("status"), "ERROR",
             "zone %s failed to go to ERROR (timeout=%s)" % (name, self.timeout)
         )
 
@@ -312,7 +312,7 @@ class BaseTest(unittest.TestCase):
 
         LOG.debug(utils.resp_to_string(resp))
         self.assertEqual(
-            resp.json()["status"], "ACTIVE",
+            resp.json().get("status"), "ACTIVE",
             "zone %s failed to go ACTIVE (timeout=%s)" % (name, self.timeout)
         )
 
