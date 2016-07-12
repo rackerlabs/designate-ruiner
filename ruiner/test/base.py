@@ -52,6 +52,8 @@ class BaseTest(unittest.TestCase):
 
         self.random_tag = utils.random_tag()
 
+        self.setup_log_dir()
+
         self.carina_dir = docker.discover_designate_carina_dir()
         self.project_name = utils.random_project_name(tag=self.random_tag)
 
@@ -79,7 +81,22 @@ class BaseTest(unittest.TestCase):
         LOG.info("======== base class teardown ========")
         self.show_docker_logs()
         self.cleanup_environment()
+        self.summarize()
         super(BaseTest, self).tearDown()
+
+    def summarize(self):
+        LOG.info("======== SUMMARY ========")
+        tag = getattr(self, 'random_tag', 'N/A')
+        log_dir = getattr(self, 'log_dir', 'N/A')
+        services_logfile = getattr(self, 'docker_logs_file', 'N/A')
+        designate_git_url = cfg.CONF.ruiner.designate_git_url
+        designate_version = cfg.CONF.ruiner.designate_version
+
+        LOG.info("tag . . . . . . . . . . : %s", tag)
+        LOG.info("log_dir . . . . . . . . : %s", log_dir)
+        LOG.info("service log . . . . . . : %s", services_logfile)
+        LOG.info("designate_git_url . . . : %s", designate_git_url)
+        LOG.info("designate_version . . . : %s", designate_version)
 
     def configure_designate_conf(self):
         """This method may be overridden by subclasses. You MUST do all
@@ -92,6 +109,11 @@ class BaseTest(unittest.TestCase):
         conf.set("service:worker", "poll_retry_interval", 2)
         conf.set("service:worker", "poll_max_retries", 2)
         conf.set("service:worker", "poll_delay", 2)
+
+    def setup_log_dir(self):
+        base_dir = os.path.realpath(cfg.CONF.ruiner.log_dir.rstrip('/'))
+        self.log_dir = os.path.join(base_dir, self.random_tag)
+        utils.mkdirs(self.log_dir)
 
     def init_tmp_dir(self):
         """There are some docker env config files we'll create dynamically.
@@ -211,10 +233,18 @@ class BaseTest(unittest.TestCase):
 
     def show_docker_logs(self):
         out, err, ret = self.docker_composer.logs()
+
+        self.docker_logs_file = os.path.realpath(
+            os.path.join(self.log_dir, 'docker-services.log'),
+        )
+        LOG.info("writing docker service logs to: %s", self.docker_logs_file)
+        with open(self.docker_logs_file, 'w') as f:
+            f.write("stdout:\n%s" % utils.strip_ansi(out))
+            f.write("stderr:\n%s" % utils.strip_ansi(err))
+
         if ret != 0:
             LOG.error("failed to get docker logs!")
-        LOG.debug("stdout:\n%s", out)
-        LOG.debug("stderr:\n%s", err)
+            LOG.error("stderr: %s", err)
 
     def create_zone(self):
         """Create a zone. Return (name, zone_id) on success, or self.fail()"""

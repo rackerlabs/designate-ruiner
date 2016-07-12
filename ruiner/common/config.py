@@ -20,7 +20,8 @@ cfg.CONF.register_opts([
                     "be ready."),
     cfg.StrOpt("designate_git_url",
                default="https://github.com/openstack/designate.git"),
-    cfg.StrOpt("designate_version", default="master")
+    cfg.StrOpt("designate_version", default="master"),
+    cfg.StrOpt("log_dir", default="./ruiner-logs"),
 ], group='ruiner')
 
 cfg.CONF.register_opts([

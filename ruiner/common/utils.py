@@ -1,7 +1,9 @@
+import errno
 import json
 import logging
 import subprocess
 import random
+import re
 import string
 import os
 import tempfile
@@ -15,6 +17,9 @@ import dns.query
 import colorlog
 
 from ruiner.common.config import cfg
+
+# http://stackoverflow.com/a/33925425
+ANSI_ESCAPES_REGEX = re.compile('(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
 
 
 def create_logger(name):
@@ -164,3 +169,17 @@ def new_temp_file(prefix, suffix):
     f = tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, delete=False)
     f.close()
     return f.name
+
+
+def mkdirs(path):
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno == errno.EEXIST and os.path.isdir(path):
+            return
+        raise
+
+
+def strip_ansi(content):
+    """Strip all ansi escape codes"""
+    return ANSI_ESCAPES_REGEX.sub('', content)
