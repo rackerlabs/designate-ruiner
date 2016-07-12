@@ -325,7 +325,7 @@ class BaseTest(unittest.TestCase):
             lambda: self.api.get_zone(zid), self.interval, self.timeout,
         )
 
-        if resp.status == 404:
+        if resp.status_code == 404:
             LOG.info("...done waiting for zone %s (status = 404)", name)
         else:
             LOG.error("...done waiting for zone %s (status != 404)", name)
