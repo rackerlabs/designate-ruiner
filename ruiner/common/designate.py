@@ -71,3 +71,18 @@ class API(Client):
 
     def delete_zone(self, zid):
         return self.delete(url="%s/v2/zones/%s" % (self.endpoint, zid))
+
+    def create_recordset(self, zname, zid):
+        name = "record-%s.%s" % (utils.random_tag(), zname)
+        body = json.dumps({
+            'name': name,
+            'type': "A",
+            'records': [utils.random_ipv4()],
+            'ttl': 300,
+        })
+        url = "%s/v2/zones/%s/recordsets" % (self.endpoint, zid)
+        return self.post(url=url, data=body)
+
+    def get_recordset(self, zid, rrid):
+        url = "%s/v2/zones/%s/recordsets/%s" % (self.endpoint, zid, rrid)
+        return self.get(url=url)

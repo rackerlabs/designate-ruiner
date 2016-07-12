@@ -183,3 +183,7 @@ def mkdirs(path):
 def strip_ansi(content):
     """Strip all ansi escape codes"""
     return ANSI_ESCAPES_REGEX.sub('', content)
+
+
+def random_ipv4():
+    return ".".join(str(random.randrange(0, 256)) for _ in range(4))

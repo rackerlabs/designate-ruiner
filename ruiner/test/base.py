@@ -263,6 +263,17 @@ class BaseTest(unittest.TestCase):
             self.fail("failed to delete zone %s", name)
         LOG.debug(utils.resp_to_string(resp))
 
+    def create_recordset(self, zname, zid):
+        """Create a recordset. Return (rrname, rrid) on success, or else
+        self.fail()"""
+        LOG.info("creating a recordset")
+        resp = self.api.create_recordset(zname, zid)
+        LOG.debug(utils.resp_to_string(resp))
+        if resp.status_code != 202:
+            self.fail("failed to create recordset (status=%s)"
+                      % resp.status_code)
+        return resp.json()['name'], resp.json()['id']
+
     def wait_for_zone_to_error(self, name, zid):
         """Wait for the given zone to go to ERROR. Fail the test if we fail to
         timeout before seeing an ERROR status.
@@ -272,7 +283,12 @@ class BaseTest(unittest.TestCase):
             lambda: self.api.get_zone(zid), ["ERROR", "ACTIVE"], self.interval,
             self.timeout,
         )
-        LOG.info("...done waiting for zone %s", name)
+
+        if resp.ok and resp.json()['status'] == 'ERROR':
+            LOG.info("...done waiting for zone %s (status = ERROR)", name)
+        else:
+            LOG.error("...done waiting for zone %s (status != ERROR)", name)
+
         LOG.debug(utils.resp_to_string(resp))
         self.assertEqual(
             resp.json()["status"], "ERROR",
@@ -288,7 +304,12 @@ class BaseTest(unittest.TestCase):
             lambda: self.api.get_zone(zid), ["ACTIVE"], self.interval,
             self.timeout
         )
-        LOG.info("...done waiting for zone %s", name)
+
+        if resp.ok and resp.json()['status'] == 'ACTIVE':
+            LOG.info("...done waiting for zone %s (status = ACTIVE)", name)
+        else:
+            LOG.error("...done waiting for zone %s (status != ACTIVE)", name)
+
         LOG.debug(utils.resp_to_string(resp))
         self.assertEqual(
             resp.json()["status"], "ACTIVE",
@@ -303,7 +324,12 @@ class BaseTest(unittest.TestCase):
         resp = waiters.wait_for_404(
             lambda: self.api.get_zone(zid), self.interval, self.timeout,
         )
-        LOG.info("...done waiting for zone %s", name)
+
+        if resp.status == 404:
+            LOG.info("...done waiting for zone %s (status = 404)", name)
+        else:
+            LOG.error("...done waiting for zone %s (status != 404)", name)
+
         LOG.debug(utils.resp_to_string(resp))
         self.assertEqual(
             resp.status_code, 404,
