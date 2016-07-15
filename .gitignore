@@ -1,6 +1,7 @@
 *.cache*
 designate-carina/
 *.pyc
-/.venv
-/.tox
+.venv
+.tox
 ruiner.conf
+ruiner-logs/

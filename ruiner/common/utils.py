@@ -6,6 +6,7 @@ import random
 import re
 import string
 import os
+import pprint
 import tempfile
 
 import dns
@@ -95,7 +96,8 @@ def resp_to_string(resp):
         msg += "\n{0}... <truncated>".format(resp.text[:1000])
     else:
         try:
-            msg += "\n{0}".format(json.dumps(resp.text, indent=2))
+            data = json.loads(resp.text)
+            msg += "\n{0}".format(pprint.pformat(data, indent=2))
         except:
             msg += "\n{0}".format(resp.text)
 
@@ -121,9 +123,7 @@ def dig(zone_name, nameserver, rdatatype):
         rdatatype = dns.rdatatype.from_text(rdatatype)
 
     query = prepare_query(zone_name, rdatatype)
-    resp = dns.query.udp(query, host, timeout=1, port=port)
-    LOG.debug("\n%s", resp)
-    return resp
+    return dns.query.udp(query, host, timeout=1, port=port)
 
 
 def prepare_query(zone_name, rdatatype):

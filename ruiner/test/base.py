@@ -74,8 +74,10 @@ class BaseTest(unittest.TestCase):
         )
 
         self.deploy_environment()
-        self.discover_services()
+        self.services = self.discover_services()
         self.prechecks()
+
+        LOG.info("======== test start ========")
 
     def tearDown(self):
         LOG.info("======== base class teardown ========")
@@ -163,6 +165,8 @@ class BaseTest(unittest.TestCase):
         self.addCleanup(utils.cleanup_file, self.designate_yaml)
 
     def discover_services(self):
+        """Discover docker service locations (url, host:port) and return a dict
+        mapping the docker service name to the location"""
         LOG.info("======== discover service locations ========")
         self.api = designate.API(
             "http://%s" % self.docker_composer.get_host("api", 9001)
@@ -174,6 +178,12 @@ class BaseTest(unittest.TestCase):
 
         self.bind2 = self.docker_composer.get_host("bind-2", 53, "udp")
         LOG.info("bind-2: %s", self.bind2)
+
+        return {
+            'api': self.api.endpoint,
+            'bind-1': self.bind1,
+            'bind-2': self.bind2,
+        }
 
     def deploy_environment(self):
         LOG.info("======== deploying env (%s) ========", self.project_name)
@@ -209,27 +219,35 @@ class BaseTest(unittest.TestCase):
 
         # these digs raise exceptions on timeouts
         LOG.info("checking bind-1 by digging it")
-        utils.dig("poo.com.", self.bind1, "ANY")
+        resp = utils.dig("poo.com.", self.bind1, "ANY")
+        LOG.debug("\n%s", resp)
 
         LOG.info("checking bind-2 by digging it")
-        utils.dig("poo.com.", self.bind2, "ANY")
+        resp = utils.dig("poo.com.", self.bind2, "ANY")
+        LOG.debug("\n%s", resp)
 
         LOG.info("all prechecks have passed!")
 
-    def kill_nameserver(self):
-        """Stop a nameservers, causing new operations to go to error"""
-        self.docker_composer.pause("bind-2")
+    def kill_nameserver(self, service_name='bind-2'):
+        """Stop a nameserver, causing new operations to go to error"""
+        self.docker_composer.pause(service_name)
+        if not self.nameserver_is_down(service_name):
+            LOG.debug("failed to pause container %s", service_name)
 
-        LOG.debug("checking bind-2 is down")
+    def nameserver_is_down(self, service_name='bind-2'):
+        """Return True if the nameserver does not respond to queries"""
+        LOG.debug("checking %s is down", service_name)
+        host = self.services[service_name]
         try:
-            utils.dig("poo.com.", self.bind2, "ANY")
+            utils.dig("poo.com.", host, "ANY")
         except dns.exception.Timeout:
-            LOG.debug("verified bind-2 is down (query timed out)")
-        else:
-            self.fail("failed to pause container bind-2")
+            LOG.debug("verified %s is down (query to %s timed out)",
+                      service_name, host)
+            return True
+        return False
 
-    def restart_nameserver(self):
-        utils.require_success(self.docker_composer.unpause("bind-2"))
+    def restart_nameserver(self, service_name='bind-2'):
+        utils.require_success(self.docker_composer.unpause(service_name))
 
     def show_docker_logs(self):
         out, err, ret = self.docker_composer.logs()
@@ -245,6 +263,15 @@ class BaseTest(unittest.TestCase):
         if ret != 0:
             LOG.error("failed to get docker logs!")
             LOG.error("stderr: %s", err)
+
+    def get_zone(self, name, zid):
+        """Fetch the zone. Return the response. self.fail() on status >= 500"""
+        LOG.info("fetching zone %s (id=%s)", name, zid)
+        resp = self.api.get_zone(zid)
+        LOG.debug(utils.resp_to_string(resp))
+        if resp.status_code >= 500:
+            self.fail("failed to fetch zone (status=%s)" % resp.status_code)
+        return resp
 
     def create_zone(self):
         """Create a zone. Return (name, zone_id) on success, or self.fail()"""
@@ -334,4 +361,53 @@ class BaseTest(unittest.TestCase):
         self.assertEqual(
             resp.status_code, 404,
             "zone %s failed to 404 (timeout=%s)" % (name, self.timeout)
+        )
+
+    def wait_for_zone_on_nameserver(self, name, service_name):
+        """Wait for a successful, non-empty response from the nameserver"""
+        LOG.info("waiting for %s to go live on nameserver %s...", name,
+                 service_name)
+
+        host = self.services[service_name]
+        resp = waiters.wait_for_zone_on_nameserver(
+            name, host, self.interval, self.timeout,
+        )
+
+        if bool(resp.answer):
+            LOG.info("...done waiting for %s on nameserver %s (found)", name,
+                     service_name)
+        else:
+            LOG.error("...done waiting for %s on nameserver %s (not found)",
+                      name, service_name)
+        LOG.debug("%s\n", resp)
+
+        self.assertTrue(
+            bool(resp.answer),
+            "zone %s never showed up on nameserver %s (timeout=%s)" % (
+                name, service_name, self.timeout
+            ),
+        )
+
+    def wait_for_zone_removed_from_nameserver(self, name, service_name):
+        LOG.info("waiting for %s to be removed from nameserver %s", name,
+                 service_name)
+
+        host = self.services[service_name]
+        resp = waiters.wait_for_zone_removed_from_nameserver(
+            name, host, self.interval, self.timeout,
+        )
+
+        if not bool(resp.answer):
+            LOG.info("...done waiting for %s to be removed from nameserver %s",
+                     name, service_name)
+        else:
+            LOG.error("...done waiting for %s to be removed from nameserver %s"
+                      " (not removed)", name, service_name)
+
+        LOG.debug("%s\n", resp)
+        self.assertFalse(
+            bool(resp.answer),
+            "zone %s never removed from nameserver %s (timeout=%s)" % (
+                name, service_name, self.timeout,
+            ),
         )

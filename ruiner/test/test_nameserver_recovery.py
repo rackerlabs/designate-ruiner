@@ -1,14 +1,11 @@
 from ruiner.common import utils
+from ruiner.common.ini import IniFile
 from ruiner.test import base
 
 LOG = utils.create_logger(__name__)
 
 
 class TestNameserverRecovery(base.BaseTest):
-
-    def setUp(self):
-        super(TestNameserverRecovery, self).setUp()
-        LOG.info("======== test start ========")
 
     def tearDown(self):
         self.docker_composer.unpause("bind-2")
@@ -47,3 +44,63 @@ class TestNameserverRecovery(base.BaseTest):
         self.wait_for_zone_to_error(zname, zid)
         self.restart_nameserver()
         self.wait_for_zone_to_active(zname, zid)
+
+
+class TestThresholdPercentage(base.BaseTest):
+
+    def configure_designate_conf(self):
+        super(TestThresholdPercentage, self).configure_designate_conf()
+
+        # with the threshold at 49%, only 1 of 2 nameservers needs a change
+        # for the resource to go ACTIVE.
+        self.threshold_percentage = 49
+
+        conf = IniFile(self.designate_conf)
+        conf.set("service:worker", "threshold_percentage",
+                 self.threshold_percentage)
+        conf.set("service:pool_manager", "threshold_percentage",
+                 self.threshold_percentage)
+
+    def test_recovery_of_zone_create_with_low_threshold_percentage(self):
+        """Create a zone while a nameserver is down. Check that the zone gets
+        to one nameserver and goes to active (due to the threshold percentage).
+        Restore the nameserver. Check the zone gets to the second nameserver.
+        """
+        self.kill_nameserver('bind-2')
+
+        # check that a zone goes to active and is really queryable on bind-1
+        name, zid = self.create_zone()
+        self.wait_for_zone_to_active(name, zid)
+        self.wait_for_zone_on_nameserver(name, 'bind-1')
+
+        # restart the other nameserver. check the zone shows up there.
+        self.restart_nameserver('bind-2')
+        self.wait_for_zone_on_nameserver(name, 'bind-2')
+
+        # check the zone is still active
+        LOG.info("checking the zone is (still) active")
+        resp = self.get_zone(name, zid)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['status'], 'ACTIVE')
+
+    def test_recovery_of_zone_delete_with_low_threshold_percentage(self):
+        """Delete an active zone while a nameserver is down. Check the zone is
+        removed from another nameserver but that zone 404s (due to the
+        threshold percentage). Restore the nameserver. Check the zone is
+        removed from the remaining nameservers."""
+
+        # create a zone
+        name, zid = self.create_zone()
+        self.wait_for_zone_to_active(name, zid)
+        self.wait_for_zone_on_nameserver(name, 'bind-1')
+        self.wait_for_zone_on_nameserver(name, 'bind-2')
+
+        # kill a nameserver. check that a delete leads to 404.
+        self.kill_nameserver('bind-2')
+        self.delete_zone(name, zid)
+        self.wait_for_zone_to_404(name, zid)
+        self.wait_for_zone_removed_from_nameserver(name, 'bind-1')
+
+        # restart the nameserver. the zone must be removed from all nameservers
+        self.restart_nameserver('bind-2')
+        self.wait_for_zone_removed_from_nameserver(name, 'bind-2')
