@@ -6,7 +6,6 @@ import random
 import re
 import string
 import os
-import pprint
 import tempfile
 
 import dns
@@ -97,7 +96,7 @@ def resp_to_string(resp):
     else:
         try:
             data = json.loads(resp.text)
-            msg += "\n{0}".format(pprint.pformat(data, indent=2))
+            msg += "\n{0}".format(json.dumps(data, indent=2))
         except:
             msg += "\n{0}".format(resp.text)
 

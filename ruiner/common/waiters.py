@@ -37,7 +37,7 @@ def wait_for_404(api_call, interval, timeout):
     return resp
 
 
-def wait_for_zone_on_nameserver(name, ns, interval, timeout):
+def wait_for_name_on_nameserver(name, ns, interval, timeout):
     """Wait for the name to show up on the nameserver. This does not catch
     timeout exceptions"""
 
@@ -54,7 +54,7 @@ def wait_for_zone_on_nameserver(name, ns, interval, timeout):
     return resp
 
 
-def wait_for_zone_removed_from_nameserver(name, ns, interval, timeout):
+def wait_for_name_removed_from_nameserver(name, ns, interval, timeout):
     """Wait for the name to be removed from the nameserver. This does not catch
     timeout exceptions"""
 

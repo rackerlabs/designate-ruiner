@@ -373,13 +373,13 @@ class BaseTest(unittest.TestCase):
             "zone %s failed to 404 (timeout=%s)" % (name, self.timeout)
         )
 
-    def wait_for_zone_on_nameserver(self, name, service_name):
+    def wait_for_name_on_nameserver(self, name, service_name):
         """Wait for a successful, non-empty response from the nameserver"""
         LOG.info("waiting for %s to go live on nameserver %s...", name,
                  service_name)
 
         host = self.services[service_name]
-        resp = waiters.wait_for_zone_on_nameserver(
+        resp = waiters.wait_for_name_on_nameserver(
             name, host, self.interval, self.timeout,
         )
 
@@ -398,12 +398,12 @@ class BaseTest(unittest.TestCase):
             ),
         )
 
-    def wait_for_zone_removed_from_nameserver(self, name, service_name):
+    def wait_for_name_removed_from_nameserver(self, name, service_name):
         LOG.info("waiting for %s to be removed from nameserver %s", name,
                  service_name)
 
         host = self.services[service_name]
-        resp = waiters.wait_for_zone_removed_from_nameserver(
+        resp = waiters.wait_for_name_removed_from_nameserver(
             name, host, self.interval, self.timeout,
         )
 
