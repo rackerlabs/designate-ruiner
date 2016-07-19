@@ -7,10 +7,6 @@ LOG = utils.create_logger(__name__)
 
 class TestNameserverRecovery(base.BaseTest):
 
-    def tearDown(self):
-        self.docker_composer.unpause("bind-2")
-        super(TestNameserverRecovery, self).tearDown()
-
     def test_create_zone_while_nameserver_is_down(self):
         """Create a zone while a nameserver is down. Check the zone goes to
         ERROR. Bring the nameserver back up. Check the zone goes to ACTIVE.
@@ -102,5 +98,6 @@ class TestThresholdPercentage(base.BaseTest):
         self.wait_for_zone_removed_from_nameserver(name, 'bind-1')
 
         # restart the nameserver. the zone must be removed from all nameservers
+        # (within our timeout)
         self.restart_nameserver('bind-2')
         self.wait_for_zone_removed_from_nameserver(name, 'bind-2')

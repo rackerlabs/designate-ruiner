@@ -107,10 +107,13 @@ class BaseTest(unittest.TestCase):
         """
         LOG.info("======== configuring designate.conf ========")
         conf = IniFile(self.designate_conf)
+        conf.set("DEFAULT", "debug", True)
         conf.set("service:worker", "poll_timeout", 2)
         conf.set("service:worker", "poll_retry_interval", 2)
         conf.set("service:worker", "poll_max_retries", 2)
         conf.set("service:worker", "poll_delay", 2)
+
+        conf.set("producer_task:worker_periodic_recovery", "interval", 30)
 
     def setup_log_dir(self):
         base_dir = os.path.realpath(cfg.CONF.ruiner.log_dir.rstrip('/'))
@@ -168,22 +171,23 @@ class BaseTest(unittest.TestCase):
         """Discover docker service locations (url, host:port) and return a dict
         mapping the docker service name to the location"""
         LOG.info("======== discover service locations ========")
-        self.api = designate.API(
-            "http://%s" % self.docker_composer.get_host("api", 9001)
-        )
-        LOG.info("api: %s", self.api.endpoint)
-
-        self.bind1 = self.docker_composer.get_host("bind-1", 53, "udp")
-        LOG.info("bind-1: %s", self.bind1)
-
-        self.bind2 = self.docker_composer.get_host("bind-2", 53, "udp")
-        LOG.info("bind-2: %s", self.bind2)
-
-        return {
-            'api': self.api.endpoint,
-            'bind-1': self.bind1,
-            'bind-2': self.bind2,
+        services = {
+            'api': self.discover_api(),
+            'bind-1': self.discover_nameserver('bind-1'),
+            'bind-2': self.discover_nameserver('bind-2'),
         }
+        self.api = designate.API(services['api'])
+        return services
+
+    def discover_api(self, service_name='api', port=9001):
+        url = "http://%s" % self.docker_composer.get_host(service_name, port)
+        LOG.info("%s:%s -> %s", service_name, port, url)
+        return url
+
+    def discover_nameserver(self, service_name, port=53, protocol='udp'):
+        location = self.docker_composer.get_host(service_name, port, protocol)
+        LOG.info("%s:%s/%s -> %s", service_name, port, protocol, location)
+        return location
 
     def deploy_environment(self):
         LOG.info("======== deploying env (%s) ========", self.project_name)
@@ -217,22 +221,31 @@ class BaseTest(unittest.TestCase):
         LOG.debug(utils.resp_to_string(resp))
         assert resp.ok
 
-        # these digs raise exceptions on timeouts
-        LOG.info("checking bind-1 by digging it")
-        resp = utils.dig("poo.com.", self.bind1, "ANY")
-        LOG.debug("\n%s", resp)
-
-        LOG.info("checking bind-2 by digging it")
-        resp = utils.dig("poo.com.", self.bind2, "ANY")
-        LOG.debug("\n%s", resp)
+        # these queries raise exceptions on timeouts
+        for service_name in ('bind-1', 'bind-2'):
+            LOG.info("checking %s by digging it", service_name)
+            resp = utils.dig("poo.com.", self.services[service_name], "ANY")
+            LOG.debug("\n%s", resp)
 
         LOG.info("all prechecks have passed!")
 
     def kill_nameserver(self, service_name='bind-2'):
         """Stop a nameserver, causing new operations to go to error"""
-        self.docker_composer.pause(service_name)
+        self.docker_composer.kill(service_name)
         if not self.nameserver_is_down(service_name):
-            LOG.debug("failed to pause container %s", service_name)
+            LOG.debug("failed to kill container %s", service_name)
+
+    def restart_nameserver(self, service_name='bind-2'):
+        utils.require_success(self.docker_composer.start(service_name))
+
+        # a container (likely) gets a new port when it is restarted
+        location = self.discover_nameserver(service_name)
+        self.services[service_name] = location
+
+        sleep_time = cfg.CONF.ruiner.service_startup_wait_time
+        LOG.info("waiting %s seconds for %s to start up", sleep_time,
+                 service_name)
+        time.sleep(sleep_time)
 
     def nameserver_is_down(self, service_name='bind-2'):
         """Return True if the nameserver does not respond to queries"""
@@ -245,9 +258,6 @@ class BaseTest(unittest.TestCase):
                       service_name, host)
             return True
         return False
-
-    def restart_nameserver(self, service_name='bind-2'):
-        utils.require_success(self.docker_composer.unpause(service_name))
 
     def show_docker_logs(self):
         out, err, ret = self.docker_composer.logs()

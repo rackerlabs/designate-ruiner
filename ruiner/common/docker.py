@@ -60,13 +60,18 @@ class DockerComposer(object):
         LOG.info("stopping docker containers")
         return self._run_cmd("docker-compose", "down")
 
-    def pause(self, container):
-        LOG.info("pausing container %s", container)
-        return self._run_cmd("docker-compose", "pause", container)
+    def kill(self, container):
+        LOG.info("killing container %s", container)
+        return self._run_cmd("docker-compose", "kill", container)
 
-    def unpause(self, container):
-        LOG.info("unpausing container %s", container)
-        return self._run_cmd("docker-compose", "unpause", container)
+    def start(self, container):
+        LOG.info("starting container %s", container)
+        return self._run_cmd("docker-compose", "start", container)
+
+    def exec_(self, container, cmd):
+        LOG.info("running '%s' in container %s", cmd, container)
+        cmd = cmd.split(' ')
+        return self._run_cmd("docker-compose", "exec", container, *cmd)
 
     def port(self, container, port, protocol=None):
         LOG.info("getting port for %s:%s", container, port)
