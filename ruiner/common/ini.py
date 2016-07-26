@@ -21,6 +21,12 @@ class IniFile(object):
             config.set(section_name, key, value)
         self._write(config)
 
+    def get(self, section_name, key):
+        return self._read().get(section_name, key)
+
+    def getint(self, section_name, key):
+        return self._read().getint(section_name, key)
+
     def _write(self, config):
         with open(self.filename, 'w') as f:
             config.write(f)

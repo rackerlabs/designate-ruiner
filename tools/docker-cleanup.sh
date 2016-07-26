@@ -34,8 +34,10 @@ fi
 for random_tag in $RANDOM_TAGS; do
     COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_TAG}_$random_tag"
     set -x
-    docker-compose $COMPOSE_FILES -p $COMPOSE_PROJECT_NAME down
+    docker-compose $COMPOSE_FILES -p $COMPOSE_PROJECT_NAME down &
     set +x
 done
+
+wait
 
 popd
