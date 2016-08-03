@@ -8,7 +8,8 @@ LOG = utils.create_logger(__name__)
 
 class Client(object):
 
-    def __init__(self, endpoint, headers=None, timeout=60):
+    def __init__(self, endpoint, headers=None, timeout=3, retries=5):
+        self.retries = retries
         self.endpoint = endpoint
         self.timeout = timeout
         self.headers = headers or {}
@@ -21,25 +22,33 @@ class Client(object):
         kwargs['headers'] = headers
         return args, kwargs
 
+    def _do_request(self, f):
+        for _ in range(self.retries):
+            try:
+                return f()
+            except requests.Timeout as e:
+                LOG.warning(str(e))
+        raise Exception("Request timed out after %s retries", self.retries)
+
     def get(self, *args, **kwargs):
         args, kwargs = self._inject_default_request_args(*args, **kwargs)
-        return requests.get(*args, **kwargs)
+        return self._do_request(lambda: requests.get(*args, **kwargs))
 
     def post(self, *args, **kwargs):
         args, kwargs = self._inject_default_request_args(*args, **kwargs)
-        return requests.post(*args, **kwargs)
+        return self._do_request(lambda: requests.post(*args, **kwargs))
 
     def put(self, *args, **kwargs):
         args, kwargs = self._inject_default_request_args(*args, **kwargs)
-        return requests.put(*args, **kwargs)
+        return self._do_request(lambda: requests.put(*args, **kwargs))
 
     def patch(self, *args, **kwargs):
         args, kwargs = self._inject_default_request_args(*args, **kwargs)
-        return requests.patch(*args, **kwargs)
+        return self._do_request(lambda: requests.patch(*args, **kwargs))
 
     def delete(self, *args, **kwargs):
         args, kwargs = self._inject_default_request_args(*args, **kwargs)
-        return requests.delete(*args, **kwargs)
+        return self._do_request(lambda: requests.delete(*args, **kwargs))
 
 
 class API(Client):
@@ -71,3 +80,18 @@ class API(Client):
 
     def delete_zone(self, zid):
         return self.delete(url="%s/v2/zones/%s" % (self.endpoint, zid))
+
+    def create_recordset(self, zname, zid):
+        name = "record-%s.%s" % (utils.random_tag(), zname)
+        body = json.dumps({
+            'name': name,
+            'type': "A",
+            'records': [utils.random_ipv4()],
+            'ttl': 300,
+        })
+        url = "%s/v2/zones/%s/recordsets" % (self.endpoint, zid)
+        return self.post(url=url, data=body)
+
+    def get_recordset(self, zid, rrid):
+        url = "%s/v2/zones/%s/recordsets/%s" % (self.endpoint, zid, rrid)
+        return self.get(url=url)

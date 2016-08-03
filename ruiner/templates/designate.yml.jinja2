@@ -4,6 +4,8 @@ services:
   designate-base:
     build:
       args:
+        DESIGNATE_GIT_URL: {{ DESIGNATE_GIT_URL }}
+        DESIGNATE_VERSION: {{ DESIGNATE_VERSION }}
         DESIGNATE_CONF: {{ DESIGNATE_CONF }}
         POOLS_YAML: {{ POOLS_YAML }}
     image: 'designate-base:{{ RUINER_PROJECT }}'
@@ -38,10 +40,10 @@ services:
       - "5354"
     command: designate-mdns
 
-  poolmanager:
+  producer:
     image: 'designate-base:{{ RUINER_PROJECT }}'
-    command: designate-pool-manager
+    command: designate-producer
 
-  zonemanager:
+  worker:
     image: 'designate-base:{{ RUINER_PROJECT }}'
-    command: designate-zone-manager
+    command: designate-worker

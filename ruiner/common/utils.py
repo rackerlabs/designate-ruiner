@@ -1,9 +1,12 @@
+import errno
 import json
 import logging
 import subprocess
 import random
+import re
 import string
 import os
+import tempfile
 
 import dns
 import dns.exception
@@ -14,6 +17,9 @@ import dns.query
 import colorlog
 
 from ruiner.common.config import cfg
+
+# http://stackoverflow.com/a/33925425
+ANSI_ESCAPES_REGEX = re.compile('(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
 
 
 def create_logger(name):
@@ -89,7 +95,8 @@ def resp_to_string(resp):
         msg += "\n{0}... <truncated>".format(resp.text[:1000])
     else:
         try:
-            msg += "\n{0}".format(json.dumps(resp.text, indent=2))
+            data = json.loads(resp.text)
+            msg += "\n{0}".format(json.dumps(data, indent=2))
         except:
             msg += "\n{0}".format(resp.text)
 
@@ -115,9 +122,7 @@ def dig(zone_name, nameserver, rdatatype):
         rdatatype = dns.rdatatype.from_text(rdatatype)
 
     query = prepare_query(zone_name, rdatatype)
-    resp = dns.query.udp(query, host, timeout=1, port=port)
-    LOG.debug("\n%s", resp)
-    return resp
+    return dns.query.udp(query, host, timeout=1, port=port)
 
 
 def prepare_query(zone_name, rdatatype):
@@ -140,9 +145,14 @@ def require_success(result):
     assert ret == 0
 
 
-def random_project_name():
-    chars = "".join(random.choice(string.ascii_letters) for _ in range(8))
-    return ("ruin_designate_%s" % chars).lower()
+def random_tag(n=8):
+    result = "".join(random.choice(string.ascii_letters) for _ in range(n))
+    return result.lower()
+
+
+def random_project_name(name="ruin_designate", tag=None):
+    tag = tag or random_tag()
+    return "{}_{}".format(name, tag).lower()
 
 
 def cleanup_file(filename):
@@ -150,3 +160,29 @@ def cleanup_file(filename):
         os.remove(filename)
     except OSError:
         pass
+
+
+def new_temp_file(prefix, suffix):
+    """Return the name of a new (closed) temp file, in tempfile.tempdir.
+    This ensures the file will be cleaned up after the test runs."""
+    f = tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, delete=False)
+    f.close()
+    return f.name
+
+
+def mkdirs(path):
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno == errno.EEXIST and os.path.isdir(path):
+            return
+        raise
+
+
+def strip_ansi(content):
+    """Strip all ansi escape codes"""
+    return ANSI_ESCAPES_REGEX.sub('', content)
+
+
+def random_ipv4():
+    return ".".join(str(random.randrange(0, 256)) for _ in range(4))
