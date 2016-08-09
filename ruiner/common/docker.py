@@ -3,8 +3,6 @@ import urlparse
 
 import utils
 
-LOG = utils.create_logger(__name__)
-
 
 def discover_designate_carina_dir():
     d = os.environ.get("DESIGNATE_CARINA_DIR", "./designate-carina")
@@ -22,7 +20,8 @@ def discover_designate_carina_dir():
 class DockerComposer(object):
     """An interface for invoking docker-compose commands"""
 
-    def __init__(self, project_name=None, compose_files=None, carina_dir=None):
+    def __init__(self, logger, project_name=None, compose_files=None,
+                 carina_dir=None):
         """
         :param project_name: the compose project name to use for all commands
             as in, `docker-compose -p <project_name>`. If None, don't use any
@@ -36,6 +35,7 @@ class DockerComposer(object):
         self.project_name = project_name
         self.compose_files = compose_files
         self.dir = carina_dir
+        self.log = logger
 
     def _run_cmd(self, *cmd):
         cmd = map(str, cmd)
@@ -47,34 +47,34 @@ class DockerComposer(object):
         return utils.run_cmd(cmd, workdir=self.dir)
 
     def build(self):
-        LOG.info("building images")
+        self.log.info("building images")
         return self._run_cmd("docker-compose", "build")
 
     def up(self, detached=True):
-        LOG.info("starting docker containers")
+        self.log.info("starting docker containers")
         if not detached:
             return self._run_cmd("docker-compose", "up")
         return self._run_cmd("docker-compose", "up", "-d")
 
     def down(self):
-        LOG.info("stopping docker containers")
+        self.log.info("stopping docker containers")
         return self._run_cmd("docker-compose", "down")
 
     def kill(self, container):
-        LOG.info("killing container %s", container)
+        self.log.info("killing container %s", container)
         return self._run_cmd("docker-compose", "kill", container)
 
     def start(self, container):
-        LOG.info("starting container %s", container)
+        self.log.info("starting container %s", container)
         return self._run_cmd("docker-compose", "start", container)
 
     def exec_(self, container, cmd):
-        LOG.info("running '%s' in container %s", cmd, container)
+        self.log.info("running '%s' in container %s", cmd, container)
         cmd = cmd.split(' ')
         return self._run_cmd("docker-compose", "exec", container, *cmd)
 
     def port(self, container, port, protocol=None):
-        LOG.info("getting port for %s:%s", container, port)
+        self.log.info("getting port for %s:%s", container, port)
 
         if protocol and protocol not in ["udp", "tcp"]:
             raise Exception("invalid protocol %s" % protocol)
@@ -85,7 +85,7 @@ class DockerComposer(object):
         return self._run_cmd(*cmd)
 
     def logs(self):
-        LOG.info("getting docker logs")
+        self.log.info("getting docker logs")
         cmd = ["docker-compose", "logs"]
         return self._run_cmd(*cmd)
 

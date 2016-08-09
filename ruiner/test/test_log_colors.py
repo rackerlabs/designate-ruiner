@@ -1,8 +1,8 @@
-import unittest
 from ruiner.common import utils
+from ruiner.test import base
 
 
-class TestLogColor(unittest.TestCase):
+class TestLogColor(base.BaseTest):
 
     def test_log_color(self):
         # this "test" doesn't check anything, but is useful for checking

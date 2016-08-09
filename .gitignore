@@ -5,3 +5,4 @@ designate-carina/
 .tox
 ruiner.conf
 ruiner-logs/
+*egg-info/

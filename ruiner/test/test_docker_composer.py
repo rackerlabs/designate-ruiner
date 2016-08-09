@@ -1,14 +1,16 @@
 import mock
 import os
-import unittest
 
 from ruiner.common.docker import DockerComposer
+from ruiner.test import base
 
 
-class TestDockerComposer(unittest.TestCase):
+class TestDockerComposer(base.BaseTest):
 
     def setUp(self):
+        super(TestDockerComposer, self).setUp()
         self.dc = DockerComposer(
+            logger=self.log,
             project_name='wumbo',
             compose_files=['hello.yml', 'goodbye.yml'],
             carina_dir='./fake-designate-carina',

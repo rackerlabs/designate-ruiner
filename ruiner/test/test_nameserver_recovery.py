@@ -1,11 +1,8 @@
-from ruiner.common import utils
 from ruiner.common.ini import IniFile
 from ruiner.test import base
 
-LOG = utils.create_logger(__name__)
 
-
-class TestNameserverRecovery(base.BaseTest):
+class TestNameserverRecovery(base.BaseDesignateTest):
 
     def test_create_zone_while_nameserver_is_down(self):
         """Create a zone while a nameserver is down. Check the zone goes to
@@ -42,7 +39,7 @@ class TestNameserverRecovery(base.BaseTest):
         self.wait_for_zone_to_active(zname, zid)
 
 
-class TestThresholdPercentage(base.BaseTest):
+class TestThresholdPercentage(base.BaseDesignateTest):
 
     def configure_designate_conf(self):
         super(TestThresholdPercentage, self).configure_designate_conf()
@@ -74,7 +71,7 @@ class TestThresholdPercentage(base.BaseTest):
         self.wait_for_name_on_nameserver(name, 'bind-2')
 
         # check the zone is still active
-        LOG.info("checking the zone is (still) active")
+        self.log.info("checking the zone is (still) active")
         resp = self.get_zone(name, zid)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['status'], 'ACTIVE')

@@ -1,18 +1,19 @@
 import tempfile
-import unittest
 import logging
 
 from ruiner.common.ini import IniFile
+from ruiner.test import base
 
 LOG = logging.getLogger(__name__)
 
 
-class TestIniFile(unittest.TestCase):
+class TestIniFile(base.BaseTest):
 
     def setUp(self):
+        super(TestIniFile, self).setUp()
         self.tempfile = tempfile.NamedTemporaryFile()
         self.filename = self.tempfile.name
-        LOG.info("using tempfile %s", self.filename)
+        self.log.info("using tempfile %s", self.filename)
         self.inifile = IniFile(self.filename)
 
     def assertFileContains(self, expected):

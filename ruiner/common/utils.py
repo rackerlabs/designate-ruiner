@@ -7,6 +7,7 @@ import re
 import string
 import os
 import tempfile
+import shutil
 
 import dns
 import dns.exception
@@ -20,13 +21,39 @@ from ruiner.common.config import cfg
 
 # http://stackoverflow.com/a/33925425
 ANSI_ESCAPES_REGEX = re.compile('(\x9B|\x1B\[)[0-?]*[ -\/]*[@-~]')
+LOG_FMT = ('{%(process)s} %(asctime)s [%(levelname)s] %(filename)s:%(lineno)s '
+           '| %(message)s')
 
 
-def create_logger(name):
+def test_start_time_tag():
+    """Returns a tag, which may be start time of this test run. This tag is
+    identical across the test runner's worker processes."""
+    return os.environ.get("RUINER_TEST_START_TIME", "latest")
+
+
+def get_log_dir():
+    """Return the unique log directory for this test run. This will be
+    identical across the test runner's worker processes."""
+    base_dir = os.path.realpath(cfg.CONF.ruiner.log_dir.rstrip('/'))
+    return os.path.join(base_dir, test_start_time_tag())
+
+
+def setup_log_dir():
+    """Create and return the log directory for this test run"""
+    log_dir = get_log_dir()
+    if log_dir.endswith('latest'):
+        shutil.rmtree(log_dir, ignore_errors=True)
+    mkdirs(log_dir)
+    return log_dir
+
+
+def get_colored_log_handler():
     colors = cfg.CONF['ruiner:colorlog']
-    stream = logging.StreamHandler()
-    stream.setFormatter(colorlog.ColoredFormatter(
-        '%(log_color)s%(asctime)s [%(levelname)s] %(message)s',
+
+    # stdout/stderr handler, with colors
+    handler = logging.StreamHandler()
+    handler.setFormatter(colorlog.ColoredFormatter(
+        '%(log_color)s' + LOG_FMT,
         log_colors={
             'DEBUG': colors.debug_color,
             'INFO': colors.info_color,
@@ -35,10 +62,26 @@ def create_logger(name):
             'CRITICAL': colors.critical_color,
         }
     ))
+    return handler
+
+
+def create_logger(name, filename=None):
+    # a handler to write to `master.log`
+    master_log_file = os.path.join(get_log_dir(), 'master.log')
+    master_handler = logging.FileHandler(master_log_file, delay=True)
+    master_handler.setFormatter(logging.Formatter(LOG_FMT))
+
+    log_handlers = [get_colored_log_handler(), master_handler]
+    if filename:
+        log_file = os.path.join(get_log_dir(), filename)
+        file_handler = logging.FileHandler(log_file, delay=True)
+        file_handler.setFormatter(logging.Formatter(LOG_FMT))
+        log_handlers.append(file_handler)
 
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    logger.addHandler(stream)
+    for h in log_handlers:
+        logger.addHandler(h)
     return logger
 
 LOG = create_logger(__name__)
