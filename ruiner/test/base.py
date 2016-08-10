@@ -44,13 +44,19 @@ class BaseTest(unittest.TestCase):
         super(BaseTest, cls).setUpClass()
         cls.interval = cfg.CONF.ruiner.interval
         cls.timeout = cfg.CONF.ruiner.timeout
-        cls.log_dir = utils.setup_log_dir()
+        cls.base_log_dir = utils.setup_log_dir()
 
     def setUp(self):
         super(BaseTest, self).setUp()
-        per_test_log_file = "{}.log".format(self.id())
+        self.log_dir = self.setup_log_dir()
+        per_test_log_file = os.path.join(self.log_dir, 'master.log')
         self.log = utils.create_logger(self.id(), per_test_log_file)
         self.log.info("======== base setup ========")
+
+    def setup_log_dir(self):
+        log_dir = os.path.join(self.base_log_dir, self.id())
+        utils.mkdirs(log_dir)
+        return log_dir
 
 
 class BaseDesignateTest(BaseTest):
@@ -92,6 +98,7 @@ class BaseDesignateTest(BaseTest):
     def tearDown(self):
         self.log.info("======== base designate test teardown ========")
         self.show_docker_logs()
+        self.store_configs()
         self.cleanup_environment()
         self.summarize()
         super(BaseTest, self).tearDown()
@@ -285,6 +292,12 @@ class BaseDesignateTest(BaseTest):
         if ret != 0:
             self.log.error("failed to get docker logs!")
             self.log.error("stderr: %s", err)
+
+    def store_configs(self):
+        shutil.copyfile(self.designate_conf,
+                        os.path.join(self.log_dir, 'designate.conf'))
+        shutil.copyfile(self.designate_yaml,
+                        os.path.join(self.log_dir, 'designate.yaml'))
 
     def get_zone(self, name, zid):
         """Fetch the zone. Return the response. self.fail() on status >= 500"""

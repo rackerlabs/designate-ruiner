@@ -47,13 +47,33 @@ def logs(args):
     entries = [(d, os.path.getmtime(d)) for d in dirs]
     entries.sort(key=lambda x: x[1], reverse=True)
 
+    result_dirs = []
     if args.want_last:
-        print entries[0][0]
+        result_dirs.append(entries[0][0])
     else:
-        for d, _ in entries:
+        result_dirs.extend([d for d, _ in entries])
+
+    if args.want_recursive:
+        for f in recursive_list(result_dirs):
+            print f
+    else:
+        for d in result_dirs:
             print d
 
     return 0
+
+
+def recursive_list(dirs):
+    """Return a sorted, recursive list of plain files in the directories"""
+    result = []
+    frontier = list(dirs)
+    while frontier:
+        for current, subdirs, files in os.walk(frontier.pop(0)):
+            frontier.extend(subdirs)
+            for f in files:
+                result.append(os.path.join(current, f))
+    result.sort()
+    return result
 
 
 def parse_args():
@@ -91,6 +111,9 @@ of test logs easier.""")
     log_parser.add_argument(
         '--last', dest='want_last', action='store_true',
         help="only show the most recent log entry")
+    log_parser.add_argument(
+        '-r', dest='want_recursive', action='store_true',
+        help="recursively list all files")
 
     # set the handler for the pytest command. this has no subparser
     pytest_sub_parser.set_defaults(
