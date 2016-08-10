@@ -48,3 +48,53 @@ The easiest away is using `tox`,
     $ tox
 
 This will run the pep8 checks and the reliability tests for designate.
+
+
+Using the `ruiner` script
+-------------------------
+
+Optionally, you may use the `ruiner` script to run tests as well. This is a
+pure wrapper around `py.test`.
+
+To install the `ruiner` script:
+
+    $ pip install test-requirements.txt
+    $ pip install .
+
+To run tests:
+
+    $ ruiner py.test ./ruiner/test/
+
+Show all log dirs from previous test runs (most recent first):
+
+    $ ruiner logs
+    ./ruiner-logs/2016-08-10_18_18_03.688111
+    ./ruiner-logs/2016-08-10_18_02_36.744491
+    ./ruiner-logs/2016-08-10_18_01_38.265400
+    ...
+
+Show the log dir from the last run:
+
+    $ ruiner logs --last
+    ./ruiner-logs/2016-08-10_18_18_03.688111
+
+List all log files from the last run:
+
+     $ ruiner logs --last -r
+    ./ruiner-logs/2016-08-10_18_18_03.688111/master.log
+    ./ruiner-logs/2016-08-10_18_18_03.688111/ruiner.test.test_docker_composer.TestDockerComposer.test_args/master.log
+    ./ruiner-logs/2016-08-10_18_18_03.688111/ruiner.test.test_docker_composer.TestDockerComposer.test_get_host/master.log
+    ./ruiner-logs/2016-08-10_18_18_03.688111/ruiner.test.test_docker_composer.TestDockerComposer.test_get_host_respects_docker_host/master.log
+    ...
+
+
+### Why to use the `ruiner` script to run `designate-ruiner` tests
+
+- It is not a custom test runner. `ruiner py.test <args>` uses `py.test`. All
+args (including flags) are passed along to `py.test` unmodified, so all
+`py.test` functionality is available.
+- It ensures timestamped log directories, in a way that works with multiple
+processes. By default, your logs are placed in `<log-dir>/latest/`. With
+`ruiner`, a new directory is created for each run, like
+`<log-dir>/2016-08-10_18_18_03.688111/`.
+- It supports listing logs from previous runs.
