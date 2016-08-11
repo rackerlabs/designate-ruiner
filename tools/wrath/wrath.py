@@ -140,8 +140,15 @@ class Trie(object):
         ])
 
 
+def read_filenames():
+    return [line.strip().lstrip('./') for line in sys.stdin]
+
+
 def find_jinja_source(filename):
-    """Look for the file in the current dir, or container dir of this module"""
+    """Look for the file in the current dir or this module's containing dir.
+
+    Raise an exception if none of the locations have the file.
+    """
     module_dir = os.path.dirname(__file__)
     locations = [filename, os.path.join(module_dir, filename)]
     for loc in locations:
@@ -150,23 +157,33 @@ def find_jinja_source(filename):
     raise Exception("Failed to find %s at any of %s" % (filename, locations))
 
 
-def gen_html(trie, template='index.html.j2'):
-    """Return an string containing html for all paths in the trie.
+def detect_log_level(line):
+    for level in ('INFO', 'DEBUG', 'WARNING', 'CRITICAL', 'ERROR'):
+        if level in line:
+            return level
+    return 'UNKNOWN'
+
+
+def generate_index_html(template_file='index.html.j2'):
+    """Return a string containing html for all paths in the trie.
 
     For all <name>.log files, if a <name>.log.html file is in the trie, then
-    we link to the html version of the file instead of the file itself. A "raw"
-    link will be added linking to the raw html.
+    we link to the html version of the file instead of the file itself. In this
+    case, a second link to the raw html is added.
     """
+    filelist = read_filenames()
+    trie = Trie()
+    for f in filelist:
+        trie.insert(f)
 
-    templ = jinja2.Template(open(find_jinja_source(template)).read())
+    template_file = find_jinja_source(template_file)
+    template = jinja2.Template(open(template_file).read())
 
     dirs = {}
     for d in trie.prefixes(2):
         node = trie.find(d)
-
         for child in node.children.values():
             children = []
-
             for p in child.traverse():
                 fullpath = d + '/' + p
                 if not fullpath.endswith('log.html'):
@@ -184,17 +201,15 @@ def gen_html(trie, template='index.html.j2'):
         'dirs': dirs,
 
     }
-    return templ.render(**kwargs)
+    print template.render(**kwargs)
+    return 0
 
 
-def html_log(filenames, template='log.html.j2'):
-    def detect_log_level(line):
-        for level in ('INFO', 'DEBUG', 'WARNING', 'CRITICAL', 'ERROR'):
-            if level in line:
-                return level
-        return 'UNKNOWN'
+def write_html_versions_of_logs(template_file='log.html.j2'):
+    filenames = read_filenames()
 
-    templ = jinja2.Template(open(find_jinja_source(template)).read())
+    template_file = find_jinja_source(template_file)
+    template = jinja2.Template(open(template_file).read())
     for source in (f for f in filenames if f.endswith('.log')):
         dest = "%s.html" % source
 
@@ -204,14 +219,15 @@ def html_log(filenames, template='log.html.j2'):
         lines = [
             {
                 'line': line,
-                'loglevel': detect_log_level(line)
+                'loglevel': detect_log_level(line),
             } for line in lines
         ]
 
         print 'Generating %s' % dest
-        content = templ.render(lines=lines)
+        content = template.render(lines=lines)
         with open(dest, 'w') as f:
             f.write(content)
+    return 0
 
 
 def parse_args():
@@ -222,14 +238,11 @@ intended to be used in conjunction with the `ruiner` script:
 
 To generate an index.html, with links to other files:
 
-    $ ruiner logs --last -r | python wrath.py --index
-    <!DOCTYPE html>
-    ...
+    $ ruiner logs --last -r | python wrath.py --index > index.html
 
-Generate html versions of all *.log files:
+Write out html versions of all *.log files:
 
     $ ruiner logs --last -r | python wrath.py --html_log
-
 
 """)
 
@@ -237,8 +250,7 @@ Generate html versions of all *.log files:
         '--test', action='store_true', help="Run internal tests")
     parser.add_argument(
         '--html-log', dest='html_log', action='store_true',
-        help="Convert log files in a directory to html versions with colors "
-             "and line numbers")
+        help="Write html versions of log files")
     parser.add_argument(
         '--index', dest='index', action='store_true',
         help='Generate an index.html with a "directory listing"')
@@ -251,14 +263,9 @@ def main():
     if args.test:
         Trie.test()
     elif args.index:
-        filelist = [line.strip().lstrip('./') for line in sys.stdin]
-        trie = Trie()
-        for f in filelist:
-            trie.insert(f)
-        print gen_html(trie)
+        return generate_index_html()
     elif args.html_log:
-        filelist = [line.strip().lstrip('./') for line in sys.stdin]
-        html_log(filelist)
+        return write_html_versions_of_logs()
     else:
         parser.print_help()
         return 1
