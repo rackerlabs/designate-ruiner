@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.INFO { color: green; }
+.ERROR, .CRITICAL { color: red; }
+.WARNING { color: orange; }
+</style>
+</head>
+
+<body>
+
+<pre>{% for item in lines %}
+<code class="{{ item.loglevel }}">{{ "%4d |" % loop.index }} {{ item.line.strip() }}</code>{% endfor %}
+</pre>
+
+</body>
+</html>
