@@ -5,7 +5,7 @@ from ruiner.common.ini import IniFile
 LOG = utils.create_logger(__name__)
 
 
-class TestZonePerTenantQuota(base.BaseTest):
+class TestZonePerTenantQuota(base.BaseDesignateTest):
 
     def configure_designate_conf(self):
         super(TestZonePerTenantQuota, self).configure_designate_conf()
@@ -25,7 +25,7 @@ class TestZonePerTenantQuota(base.BaseTest):
 
         # create an additional zone. check that it 413s.
         resp = self.api.create_zone()
-        LOG.debug(utils.resp_to_string(resp))
+        self.log.debug(utils.resp_to_string(resp))
         self.assertEqual(resp.status_code, 413)
         self.assertEqual(resp.json()["code"], 413)
         self.assertEqual(resp.json()["type"], "over_quota")

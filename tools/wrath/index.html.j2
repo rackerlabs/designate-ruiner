@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+</head>
+
+<body>
+{% for dir in dirs | sort %}
+<p><code>{{ loop.index }}. {{ dir }}</code>
+    {% for item in dirs[dir] %}
+        {% if item.has_html %}
+          <br>
+          <a target="_blank" href="/{{ item.path }}.html"><code>{{ item.name }}</code></a>
+          <a target="_blank" href="/{{ item.path }}"><code>[raw]</code></a>
+        {% else %}
+          <br>
+          <a target="_blank" href="/{{ item.path }}"><code>{{ item.name }}</code></a>
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+</body>
+</html>
