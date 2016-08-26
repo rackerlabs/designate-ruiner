@@ -1,3 +1,5 @@
+import unittest
+
 from ruiner.common.ini import IniFile
 from ruiner.test import base
 
@@ -39,6 +41,7 @@ class TestNameserverRecovery(base.BaseDesignateTest):
         self.wait_for_zone_to_active(zname, zid)
 
 
+@unittest.skip("https://bugs.launchpad.net/designate/+bug/1617454")
 class TestThresholdPercentage(base.BaseDesignateTest):
 
     def configure_designate_conf(self):
